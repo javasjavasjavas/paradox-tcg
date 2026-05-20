@@ -1,11 +1,11 @@
 import { Cpu, User } from 'lucide-react'
-import opponentPortraitUrl from '../assets/portraits/opponent-face.png'
+import opponentPortraitUrl from '../assets/portraits/remote-viewer-face.png'
 import playerPortraitUrl from '../assets/portraits/player-face.png'
 import type { CardData, PlayerId } from '../game/gameTypes'
 
 const CHARACTER_NAMES: Record<PlayerId, string> = {
   player: 'Aware',
-  opponent: 'Arcade Hero',
+  opponent: 'Remote Viewer',
 }
 
 interface PlayerPanelProps {

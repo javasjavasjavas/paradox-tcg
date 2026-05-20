@@ -1,6 +1,9 @@
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useReducer, useState } from 'react'
 import { Board } from './components/Board'
 import { IntroScreen } from './components/IntroScreen'
+import { StageIntroScreen } from './components/StageIntroScreen'
+import { stages } from './data/stages'
 import { chooseOpponentResponseCard, chooseOpponentTurn } from './game/ai'
 import { GAME_CONFIG } from './game/gameConfig'
 import { createInitialState, gameReducer } from './game/gameReducer'
@@ -16,10 +19,12 @@ const fastTiming = {
 
 function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState)
-  const [hasStarted, setHasStarted] = useState(false)
+  const [screen, setScreen] = useState<'game_intro' | 'stage_intro' | 'match'>('game_intro')
+  const [stageIndex] = useState(0)
   const [skipAnimations, setSkipAnimations] = useState(false)
   const [debugOpen, setDebugOpen] = useState(false)
   const timing = skipAnimations ? fastTiming : GAME_CONFIG.timing
+  const currentStage = stages[stageIndex]
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -113,19 +118,35 @@ function App() {
     }
   }, [state.phase])
 
-  if (!hasStarted) {
-    return <IntroScreen onStartGame={() => setHasStarted(true)} />
-  }
+  const screenContent =
+    screen === 'game_intro' ? (
+      <IntroScreen onStartGame={() => setScreen('stage_intro')} />
+    ) : screen === 'stage_intro' ? (
+      <StageIntroScreen stage={currentStage} onStartMatch={() => setScreen('match')} />
+    ) : (
+      <Board
+        state={state}
+        dispatch={dispatch}
+        skipAnimations={skipAnimations}
+        debugOpen={debugOpen}
+        onToggleAnimations={() => setSkipAnimations((current) => !current)}
+        onToggleDebug={() => setDebugOpen((current) => !current)}
+      />
+    )
 
   return (
-    <Board
-      state={state}
-      dispatch={dispatch}
-      skipAnimations={skipAnimations}
-      debugOpen={debugOpen}
-      onToggleAnimations={() => setSkipAnimations((current) => !current)}
-      onToggleDebug={() => setDebugOpen((current) => !current)}
-    />
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={screen}
+        className="screen-transition"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.38, ease: 'easeInOut' }}
+      >
+        {screenContent}
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
