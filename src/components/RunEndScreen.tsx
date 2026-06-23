@@ -8,8 +8,11 @@ interface RunEndScreenProps {
   mode: 'game-over' | 'victory'
   opponent: StageData
   defeatedStages: StageData[]
+  leaderboardNotice?: string | null
+  leaderboardStatus?: 'idle' | 'authenticating' | 'submitting' | 'submitted' | 'error'
   score: number
-  onConnectX: () => void
+  xHandle?: string | null
+  onConnectX: () => Promise<void> | void
   onMainMenu: () => void
   onTryAgain: () => void
 }
@@ -18,7 +21,10 @@ export function RunEndScreen({
   mode,
   opponent,
   defeatedStages,
+  leaderboardNotice,
+  leaderboardStatus = 'idle',
   score,
+  xHandle,
   onConnectX,
   onMainMenu,
   onTryAgain,
@@ -30,9 +36,25 @@ export function RunEndScreen({
   const copy = isVictory
     ? 'ALL RIVAL SIGNALS HAVE BEEN BROKEN. THE RUN IS COMPLETE.'
     : `${opponent.name.toUpperCase()} BROKE YOUR DECK. REBUILD THE ROUTE AND TRY AGAIN.`
+  const isConnectingX = leaderboardStatus === 'authenticating'
+  const isSubmittingScore = leaderboardStatus === 'submitting'
+  const isConnectDisabled = isConnectingX || isSubmittingScore
+  const connectButtonLabel = xHandle ? 'SUBMIT SCORE' : 'CONNECT X'
+  const connectButtonDetail = isConnectingX
+    ? 'X AUTH'
+    : isSubmittingScore
+      ? 'SYNCING SCORE'
+      : leaderboardStatus === 'submitted'
+        ? 'SCORE LINKED'
+        : xHandle
+          ? xHandle
+          : 'LEADERBOARD LINK'
+  const noticeText =
+    leaderboardNotice ??
+    (xHandle ? 'X CONNECTED. SCORE READY FOR THE LEADERBOARD.' : 'CONNECT X TO CLAIM THE SCORE.')
 
-  function handleConnectXClick() {
-    onConnectX()
+  async function handleConnectXClick() {
+    await onConnectX()
     setConnectNoticeId((current) => current + 1)
   }
 
@@ -99,10 +121,15 @@ export function RunEndScreen({
             </button>
           ) : null}
 
-          <button type="button" className="intro-menu__item" onClick={handleConnectXClick}>
+          <button
+            type="button"
+            className="intro-menu__item"
+            disabled={isConnectDisabled}
+            onClick={() => void handleConnectXClick()}
+          >
             <span className="run-end-screen__x-icon" aria-hidden="true" />
-            <span>CONNECT X</span>
-            <small>LEADERBOARD LINK</small>
+            <span>{connectButtonLabel}</span>
+            <small>{connectButtonDetail}</small>
           </button>
 
           <button type="button" className="intro-menu__item" onClick={onMainMenu}>
@@ -123,7 +150,7 @@ export function RunEndScreen({
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
-              X ACCOUNT LINK NEEDS THE REAL LEADERBOARD BACKEND.
+              {noticeText}
             </motion.div>
           ) : null}
         </AnimatePresence>
