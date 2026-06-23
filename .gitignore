@@ -10,10 +10,14 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.env
+.env.*
+!.env.example
 *.local
 
 # Local QA artifacts
 playtest-*.png
+test-artifacts/
 
 # Editor directories and files
 .vscode/*

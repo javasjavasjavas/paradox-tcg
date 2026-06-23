@@ -1,17 +1,13 @@
-import { sampleCards } from '../data/cards'
 import { resolveBattle } from './battleResolver'
+import { buildMatchDecks, buildRandomStageRewardCard } from './deckBuilder'
 import { GAME_CONFIG, STAT_LABELS } from './gameConfig'
-import type { BattleLogEntry, CardData, GameAction, GameState, PlayerId } from './gameTypes'
+import type { BattleLogEntry, CardData, GameAction, GameState, MatchDeckSeed, OpponentDialogue, PlayerId } from './gameTypes'
 
-const splitDecks = () => {
-  const playerCards = sampleCards
-    .filter((_, index) => index % 2 === 0)
-    .map((card) => ({ ...card, id: `player-${card.id}` }))
-  const opponentCards = sampleCards
-    .filter((_, index) => index % 2 === 1)
-    .map((card) => ({ ...card, id: `opponent-${card.id}` }))
-
-  return { playerCards, opponentCards }
+const emptyDeckSeed: MatchDeckSeed = {
+  opponentId: 'remote-viewer',
+  ownedTokenIds: [],
+  playerCoreTokenIds: [],
+  rewardTokenIds: [],
 }
 
 const drawToLimit = (deck: CardData[], hand: CardData[]) => {
@@ -58,8 +54,56 @@ const availableCards = (state: GameState, player: PlayerId) =>
     ? state.playerDeck.length + state.playerHand.length
     : state.opponentDeck.length + state.opponentHand.length
 
-export function createInitialState(): GameState {
-  const { playerCards, opponentCards } = splitDecks()
+const totalPlayerCards = (state: GameState) =>
+  state.playerDeck.length + state.playerHand.length + (state.arena.playerCard ? 1 : 0)
+
+const calculateStageScore = (state: GameState, winner: PlayerId) => {
+  if (winner !== 'player') return 0
+
+  const deckScore = totalPlayerCards(state) * 24
+  const captureScore = state.playerCaptured.length * 90
+  const paceBonus = Math.max(0, 28 - state.turnNumber) * 12
+
+  return deckScore + captureScore + paceBonus
+}
+
+const createStageReward = (winner: PlayerId, opponentId: string | undefined) =>
+  winner === 'player'
+    ? {
+        card: buildRandomStageRewardCard(opponentId),
+        status: 'pending' as const,
+      }
+    : null
+
+const hasPlayableAlternative = (cards: CardData[], blockedCardId: string | null) =>
+  Boolean(blockedCardId && cards.length > 1 && cards.some((card) => card.id !== blockedCardId))
+
+const getStreakDialogue = (
+  state: GameState,
+  winningPlayer: PlayerId,
+  streakCount: number,
+): OpponentDialogue | null => {
+  if (streakCount !== 3) return null
+
+  const nextId = (state.opponentDialogue?.id ?? 0) + 1
+
+  if (winningPlayer === 'player') {
+    return {
+      id: nextId,
+      message: 'THREE ROUNDS IN A ROW... YOUR SIGNAL IS TOO LOUD.',
+      tone: 'pressure',
+    }
+  }
+
+  return {
+    id: nextId,
+    message: 'YOUR PATTERN IS COLLAPSING. I CAN SEE THE NEXT MOVE.',
+    tone: 'taunt',
+  }
+}
+
+export function createInitialState(deckSeed: MatchDeckSeed = emptyDeckSeed): GameState {
+  const { playerCards, opponentCards } = buildMatchDecks(deckSeed)
   const playerDraw = drawToLimit(playerCards, [])
   const opponentDraw = drawToLimit(opponentCards, [])
 
@@ -67,17 +111,32 @@ export function createInitialState(): GameState {
     phase: 'player_select_card',
     activePlayer: 'player',
     selectedStat: null,
+    deckSeed,
     playerDeck: playerDraw.deck,
     opponentDeck: opponentDraw.deck,
     playerHand: playerDraw.hand,
     opponentHand: opponentDraw.hand,
     playerCaptured: [],
     opponentCaptured: [],
+    playerLastPlayedCardId: null,
+    opponentLastPlayedCardId: null,
+    roundWinStreak: {
+      player: 0,
+      opponent: 0,
+    },
+    playerStatStreak: {
+      stat: null,
+      count: 0,
+    },
+    statLimitNotice: null,
+    opponentDialogue: null,
     arena: {
       playerCard: null,
       opponentCard: null,
     },
     battleResult: null,
+    stageReward: null,
+    scoreObtained: 0,
     log: [
       {
         id: 'match-start',
@@ -94,10 +153,29 @@ export function createInitialState(): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'restart_game':
-      return createInitialState()
+      return createInitialState(state.deckSeed)
+
+    case 'start_match':
+      return createInitialState(action.deckSeed)
 
     case 'select_player_card': {
       if (state.phase !== 'player_select_card') return state
+      if (
+        action.cardId === state.playerLastPlayedCardId &&
+        hasPlayableAlternative(state.playerHand, state.playerLastPlayedCardId)
+      ) {
+        const message = 'CARD LOCKED. PLAY A DIFFERENT CARD BEFORE REUSING THIS ONE.'
+
+        return {
+          ...state,
+          statLimitNotice: {
+            id: (state.statLimitNotice?.id ?? 0) + 1,
+            stat: 'attack',
+            message,
+          },
+          log: withLog(state, message, 'warning'),
+        }
+      }
 
       const { card, cards } = removeCard(state.playerHand, action.cardId)
       if (!card) return state
@@ -114,11 +192,32 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'select_stat': {
       if (state.phase !== 'player_select_stat' || !state.arena.playerCard) return state
+      const isRepeatingStat = state.playerStatStreak.stat === action.stat
+      const currentStreakCount = isRepeatingStat ? state.playerStatStreak.count : 0
+
+      if (currentStreakCount >= GAME_CONFIG.maxRepeatedStatSelections) {
+        const message = `${STAT_LABELS[action.stat]} locked. Choose another stat to reset your flow.`
+
+        return {
+          ...state,
+          statLimitNotice: {
+            id: (state.statLimitNotice?.id ?? 0) + 1,
+            stat: action.stat,
+            message,
+          },
+          log: withLog(state, message, 'warning'),
+        }
+      }
 
       return {
         ...state,
         selectedStat: action.stat,
         phase: 'opponent_responding',
+        playerStatStreak: {
+          stat: action.stat,
+          count: currentStreakCount + 1,
+        },
+        statLimitNotice: null,
         log: withLog(
           state,
           `You declared ${STAT_LABELS[action.stat].toUpperCase()}.`,
@@ -165,6 +264,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'select_player_response': {
       if (state.phase !== 'player_responding') return state
+      if (
+        action.cardId === state.playerLastPlayedCardId &&
+        hasPlayableAlternative(state.playerHand, state.playerLastPlayedCardId)
+      ) {
+        const message = 'CARD LOCKED. PLAY A DIFFERENT CARD BEFORE REUSING THIS ONE.'
+
+        return {
+          ...state,
+          statLimitNotice: {
+            id: (state.statLimitNotice?.id ?? 0) + 1,
+            stat: 'attack',
+            message,
+          },
+          log: withLog(state, message, 'warning'),
+        }
+      }
 
       const { card, cards } = removeCard(state.playerHand, action.cardId)
       if (!card) return state
@@ -195,17 +310,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         attacker: state.activePlayer,
       })
 
-      const tieLog = result.wasTieBreaker
-        ? result.randomTieBreak
-          ? 'Exact tie. Random tie break triggered.'
-          : `Tie detected. Secondary stat: ${STAT_LABELS[result.comparedStat].toUpperCase()}.`
-        : null
-
       const nextLog = [
-        ...(tieLog ? [logEntry(state, tieLog, 'warning')] : []),
         logEntry(
           state,
-          `${state.arena.playerCard.name} (${result.playerValue}) VS ${state.arena.opponentCard.name} (${result.opponentValue}). ${result.winningCard.name} wins.`,
+          result.isDraw
+            ? `${state.arena.playerCard.name} (${result.playerValue}) VS ${state.arena.opponentCard.name} (${result.opponentValue}). Draw.`
+            : `${state.arena.playerCard.name} (${result.playerValue}) VS ${state.arena.opponentCard.name} (${result.opponentValue}). ${result.winningCard?.name ?? 'Unknown card'} wins.`,
           'battle',
         ),
       ]
@@ -229,13 +339,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const playerCaptured = [...state.playerCaptured]
       const opponentCaptured = [...state.opponentCaptured]
 
-      if (result.winningPlayer === 'player') {
-        playerHand = [...playerHand, result.winningCard]
+      if (result.isDraw) {
+        playerDeck = [...playerDeck, result.playerCard]
+        opponentDeck = [...opponentDeck, result.opponentCard]
+      } else if (result.winningPlayer === 'player' && result.losingCard && result.winningCard) {
+        playerDeck = [...playerDeck, result.losingCard, result.winningCard]
         playerCaptured.push(result.losingCard)
-      } else {
-        opponentHand = [...opponentHand, result.winningCard]
+      } else if (result.winningPlayer === 'opponent' && result.losingCard && result.winningCard) {
+        opponentDeck = [...opponentDeck, result.losingCard, result.winningCard]
         opponentCaptured.push(result.losingCard)
       }
+
+      const nextRoundWinStreak = {
+        player: result.winningPlayer === 'player' ? state.roundWinStreak.player + 1 : 0,
+        opponent: result.winningPlayer === 'opponent' ? state.roundWinStreak.opponent + 1 : 0,
+      }
+      const opponentDialogue = result.winningPlayer
+        ? getStreakDialogue(
+            state,
+            result.winningPlayer,
+            nextRoundWinStreak[result.winningPlayer],
+          )
+        : null
 
       const playerDraw = drawToLimit(playerDeck, playerHand)
       const opponentDraw = drawToLimit(opponentDeck, opponentHand)
@@ -246,7 +371,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const nextState: GameState = {
         ...state,
-        activePlayer: result.winningPlayer,
+        activePlayer: result.winningPlayer ?? state.activePlayer,
         selectedStat: null,
         playerDeck,
         opponentDeck,
@@ -254,12 +379,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         opponentHand,
         playerCaptured,
         opponentCaptured,
+        playerLastPlayedCardId: state.arena.playerCard?.id ?? state.playerLastPlayedCardId,
+        opponentLastPlayedCardId: state.arena.opponentCard?.id ?? state.opponentLastPlayedCardId,
+        roundWinStreak: nextRoundWinStreak,
+        opponentDialogue,
         arena: { playerCard: null, opponentCard: null },
         battleResult: null,
         turnNumber: state.turnNumber + 1,
         log: withLog(
           state,
-          `${result.winningPlayer === 'player' ? 'You capture' : 'Opponent captures'} ${result.losingCard.name}.`,
+          result.isDraw
+            ? 'Draw. Both cards return to the bottom of their decks.'
+            : `${result.winningPlayer === 'player' ? 'You capture' : 'Opponent captures'} ${result.losingCard?.name ?? 'the card'}.`,
           'battle',
         ),
       }
@@ -271,18 +402,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         : opponentOut
           ? 'player'
           : null
-
-      return {
+      const resolvedState: GameState = {
         ...nextState,
         phase: winner ? 'game_over' : 'draw_phase',
         winner,
+        stageReward: winner ? createStageReward(winner, state.deckSeed.opponentId) : null,
+        scoreObtained: winner ? calculateStageScore(nextState, winner) : 0,
+      }
+
+      return {
+        ...resolvedState,
         log: winner
           ? withLog(
-              nextState,
+              resolvedState,
               `${winner === 'player' ? 'Victory' : 'Defeat'} registered. Enemy pool exhausted.`,
               winner === 'player' ? 'player' : 'opponent',
             )
-          : nextState.log,
+          : resolvedState.log,
       }
     }
 
@@ -300,6 +436,76 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           `${state.activePlayer === 'player' ? 'You keep' : 'Opponent keeps'} initiative.`,
           state.activePlayer === 'player' ? 'player' : 'opponent',
         ),
+      }
+    }
+
+    case 'clear_stat_limit_notice': {
+      if (state.statLimitNotice?.id !== action.noticeId) return state
+
+      return {
+        ...state,
+        statLimitNotice: null,
+      }
+    }
+
+    case 'clear_opponent_dialogue': {
+      if (state.opponentDialogue?.id !== action.dialogueId) return state
+
+      return {
+        ...state,
+        opponentDialogue: null,
+      }
+    }
+
+    case 'force_stage_clear': {
+      if (state.phase === 'game_over') return state
+
+      const nextState = {
+        ...state,
+        phase: 'game_over' as const,
+        selectedStat: null,
+        winner: 'player' as const,
+        stageReward: createStageReward('player', state.deckSeed.opponentId),
+        scoreObtained: calculateStageScore(state, 'player'),
+        log: withLog(state, 'Victory registered. Proceed to the next stage.', 'player'),
+      }
+
+      return nextState
+    }
+
+    case 'add_stage_reward': {
+      if (!state.stageReward || state.stageReward.status !== 'pending') return state
+
+      const rewardTokenId = state.stageReward.card.tokenId
+      const rewardTokenIds = rewardTokenId
+        ? [...new Set([...(state.deckSeed.rewardTokenIds ?? []), String(rewardTokenId)])]
+        : state.deckSeed.rewardTokenIds
+
+      return {
+        ...state,
+        deckSeed: {
+          ...state.deckSeed,
+          rewardTokenIds,
+        },
+        playerDeck: [...state.playerDeck, state.stageReward.card],
+        stageReward: {
+          ...state.stageReward,
+          status: 'added',
+        },
+        log: withLog(state, `${state.stageReward.card.name} added to your deck.`, 'player'),
+      }
+    }
+
+    case 'discard_stage_reward': {
+      if (!state.stageReward || state.stageReward.status !== 'pending') return state
+
+      return {
+        ...state,
+        stageReward: {
+          ...state.stageReward,
+          status: 'discarded',
+        },
+        log: withLog(state, `${state.stageReward.card.name} discarded.`, 'warning'),
       }
     }
 

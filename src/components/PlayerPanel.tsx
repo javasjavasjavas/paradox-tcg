@@ -4,8 +4,8 @@ import playerPortraitUrl from '../assets/portraits/player-face.png'
 import type { CardData, PlayerId } from '../game/gameTypes'
 
 const CHARACTER_NAMES: Record<PlayerId, string> = {
-  player: 'Aware',
-  opponent: 'Remote Viewer',
+  player: 'AWARE',
+  opponent: 'REMOTE VIEWER',
 }
 
 interface PlayerPanelProps {
@@ -13,8 +13,9 @@ interface PlayerPanelProps {
   title: string
   featuredCard: CardData | null
   deckCount: number
-  capturedCount: number
   isActive: boolean
+  characterName?: string
+  portraitUrl?: string
 }
 
 export function PlayerPanel({
@@ -22,12 +23,14 @@ export function PlayerPanel({
   title,
   featuredCard,
   deckCount,
-  capturedCount,
   isActive,
+  characterName: characterNameOverride,
+  portraitUrl: portraitUrlOverride,
 }: PlayerPanelProps) {
   const Icon = player === 'player' ? User : Cpu
-  const portraitUrl = player === 'player' ? playerPortraitUrl : opponentPortraitUrl
-  const characterName = CHARACTER_NAMES[player]
+  const defaultPortraitUrl = player === 'player' ? playerPortraitUrl : opponentPortraitUrl
+  const portraitUrl = portraitUrlOverride ?? defaultPortraitUrl
+  const characterName = characterNameOverride ?? CHARACTER_NAMES[player]
 
   return (
     <section className="side-panel player-panel" data-active={isActive}>
@@ -36,7 +39,7 @@ export function PlayerPanel({
         <Icon size={18} />
         <div>
           <strong>{characterName}</strong>
-          <span>Rank {featuredCard?.rarity ?? '--'}</span>
+          <span>RANK {featuredCard?.rarity.toUpperCase() ?? '--'}</span>
         </div>
       </div>
       <div className="player-panel__preview">
@@ -54,17 +57,7 @@ export function PlayerPanel({
             <b />
           </i>
           <strong>{deckCount}</strong>
-          <em>Deck</em>
-        </div>
-        <div className="player-panel__count">
-          <i
-            className="player-panel__count-icon player-panel__count-icon--captured"
-            aria-hidden="true"
-          >
-            <b />
-          </i>
-          <strong>{capturedCount}</strong>
-          <em>Captured</em>
+          <em>DECK</em>
         </div>
       </div>
     </section>

@@ -14,8 +14,11 @@ export function BattleArena({ state }: BattleArenaProps) {
   const playerValue = selectedStat && arena.playerCard ? arena.playerCard.stats[selectedStat] : null
   const opponentValue =
     selectedStat && arena.opponentCard ? arena.opponentCard.stats[selectedStat] : null
+  const playerDisplayValue = battleResult ? battleResult.playerValue : playerValue
+  const opponentDisplayValue = battleResult ? battleResult.opponentValue : opponentValue
   const playerWon = battleResult?.winningPlayer === 'player'
-  const comparedStat = battleResult?.tieBreakerStat ?? selectedStat
+  const isDraw = Boolean(battleResult?.isDraw)
+  const comparedStat = battleResult?.comparedStat ?? selectedStat
   const comparedStatLabel = comparedStat ? STAT_LABELS[comparedStat] : null
 
   return (
@@ -50,10 +53,8 @@ export function BattleArena({ state }: BattleArenaProps) {
               initial={{ scale: 0.74, opacity: 0.45 }}
               animate={{ scale: 1, opacity: 1 }}
             >
-              <strong>
-                {battleResult?.tieBreakerStat && arena.playerCard
-                  ? arena.playerCard.stats[battleResult.tieBreakerStat]
-                  : playerValue ?? '--'}
+              <strong data-placeholder={playerDisplayValue === null ? true : undefined}>
+                {playerDisplayValue ?? '--'}
               </strong>
               {comparedStatLabel ? <em>{comparedStatLabel}</em> : null}
             </motion.div>
@@ -65,10 +66,8 @@ export function BattleArena({ state }: BattleArenaProps) {
               initial={{ scale: 0.74, opacity: 0.45 }}
               animate={{ scale: 1, opacity: 1 }}
             >
-              <strong>
-                {battleResult?.tieBreakerStat && arena.opponentCard
-                  ? arena.opponentCard.stats[battleResult.tieBreakerStat]
-                  : opponentValue ?? '--'}
+              <strong data-placeholder={opponentDisplayValue === null ? true : undefined}>
+                {opponentDisplayValue ?? '--'}
               </strong>
               {comparedStatLabel ? <em>{comparedStatLabel}</em> : null}
             </motion.div>
@@ -77,19 +76,21 @@ export function BattleArena({ state }: BattleArenaProps) {
           {phase === 'capture_animation' && battleResult ? (
             <motion.div
               className="battle-outcome"
-              data-result={playerWon ? 'win' : 'lose'}
+              data-result={isDraw ? 'draw' : playerWon ? 'win' : 'lose'}
               initial={{ opacity: 0, y: 10, scale: 0.86 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.34, ease: 'easeOut' }}
             >
-              {playerWon ? 'You Win!' : 'You Lose!'}
+              {isDraw ? "It's a Draw!" : playerWon ? 'You Win!' : 'You Lose!'}
             </motion.div>
           ) : null}
 
           <div className="comparison-core__message">
             <GlitchText active={phase === 'capture_animation'}>
               {battleResult
-                ? `${battleResult.winningCard.name} wins`
+                ? battleResult.isDraw
+                  ? 'Cards return to deck'
+                  : `${battleResult.winningCard?.name ?? 'Card'} wins`
                 : phase === 'battle_reveal'
                   ? 'Revealing cards'
                   : 'Awaiting combatants'}

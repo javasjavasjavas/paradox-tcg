@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import { Play } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import stageBg from '../assets/ui/stage-1-bg.png'
 import type { StageData } from '../data/stages'
 
 interface StageIntroScreenProps {
@@ -13,17 +12,8 @@ export function StageIntroScreen({ stage, onStartMatch }: StageIntroScreenProps)
   return (
     <main
       className="stage-intro"
-      style={{ '--stage-bg': `url(${stageBg})` } as CSSProperties}
+      style={{ '--stage-bg': `url(${stage.backgroundUrl})` } as CSSProperties}
     >
-      <motion.div
-        className="stage-intro__label"
-        initial={{ opacity: 0, x: -34 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.55, ease: 'easeOut' }}
-      >
-        Stage {stage.number}
-      </motion.div>
-
       <section className="stage-intro__content" aria-label="Stage introduction">
         <motion.div
           className="stage-intro__headline"
@@ -31,8 +21,7 @@ export function StageIntroScreen({ stage, onStartMatch }: StageIntroScreenProps)
           animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
           transition={{ duration: 0.72, ease: 'easeOut', delay: 0.12 }}
         >
-          <span>Battle</span>
-          <strong>Start</strong>
+          <span>STAGE {stage.stage}</span>
         </motion.div>
 
         <motion.div
@@ -41,9 +30,9 @@ export function StageIntroScreen({ stage, onStartMatch }: StageIntroScreenProps)
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.48, ease: 'easeOut', delay: 0.34 }}
         >
-          <span>Opponent</span>
-          <strong>{stage.opponentName}</strong>
-          <p>{stage.opponentLore}</p>
+          <span>OPPONENT</span>
+          <strong>{stage.name}</strong>
+          <p>{stage.lore.toUpperCase()}</p>
         </motion.div>
 
         <motion.button
@@ -57,8 +46,8 @@ export function StageIntroScreen({ stage, onStartMatch }: StageIntroScreenProps)
           whileTap={{ scale: 0.98 }}
         >
           <Play size={24} strokeWidth={1.8} />
-          <span>Start Match</span>
-          <small>Rival link ready</small>
+          <span>START MATCH</span>
+          <small>RIVAL LINK READY</small>
         </motion.button>
       </section>
     </main>

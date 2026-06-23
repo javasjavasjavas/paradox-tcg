@@ -2,6 +2,10 @@ import type { GamePhase, StatKey } from './gameTypes'
 
 export const GAME_CONFIG = {
   handSize: 5,
+  deckSize: 10,
+  deckCoreLimit: 5,
+  deckFillCommonChance: 0.8,
+  maxRepeatedStatSelections: 3,
   tieBreakerOrder: ['attack', 'defense', 'wisdom', 'charisma'] as StatKey[],
   aiRandomness: 0.18,
   timing: {
@@ -36,7 +40,7 @@ export const PHASE_LABELS: Record<GamePhase, string> = {
   player_responding: 'Choose your response',
   battle_reveal: 'Battle reveal',
   resolving_battle: 'Resolving battle',
-  capture_animation: 'Card captured',
+  capture_animation: 'Round result',
   draw_phase: 'Drawing cards',
   game_over: 'Game over',
 }

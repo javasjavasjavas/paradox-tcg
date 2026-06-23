@@ -1,0 +1,122 @@
+[
+  {
+    "id": "remote-viewer",
+    "name": "Remote Viewer",
+    "stage": 1,
+    "lore": "Her mind travels beyond walls and distance, watching hidden truths no screen was meant to reveal.",
+    "backgroundAsset": "stage-1-bg",
+    "portraitAsset": "remote-viewer-face",
+    "deckRarityMix": {
+      "common": 1,
+      "rare": 0,
+      "epic": 0,
+      "legendary": 0
+    },
+    "difficulty": {
+      "score": 1,
+      "bestStatChance": 0.34,
+      "secondBestStatChance": 0.33,
+      "lowerStatChance": 0.33
+    }
+  },
+  {
+    "id": "mind-reader",
+    "name": "Mind Reader",
+    "stage": 2,
+    "lore": "He hears decisions before they become motion, turning every hesitation into a trap.",
+    "backgroundAsset": "stage-2-bg",
+    "portraitAsset": "mind-reader-face",
+    "deckRarityMix": {
+      "common": 0.7,
+      "rare": 0.3,
+      "epic": 0,
+      "legendary": 0
+    },
+    "difficulty": {
+      "score": 2,
+      "bestStatChance": 0.44,
+      "secondBestStatChance": 0.34,
+      "lowerStatChance": 0.22
+    }
+  },
+  {
+    "id": "lil-jenny",
+    "name": "Lil Jenny",
+    "stage": 3,
+    "lore": "She smiles like a secret and turns every careless move into a locked door.",
+    "backgroundAsset": "stage-3-bg",
+    "portraitAsset": "lil-jenny-face",
+    "deckRarityMix": {
+      "common": 0.55,
+      "rare": 0.35,
+      "epic": 0.1,
+      "legendary": 0
+    },
+    "difficulty": {
+      "score": 3,
+      "bestStatChance": 0.54,
+      "secondBestStatChance": 0.31,
+      "lowerStatChance": 0.15
+    }
+  },
+  {
+    "id": "the-doctor",
+    "name": "The Doctor",
+    "stage": 4,
+    "lore": "He treats fear as a symptom and precision as the only cure worth offering.",
+    "backgroundAsset": "stage-4-bg",
+    "portraitAsset": "the-doctor-face",
+    "deckRarityMix": {
+      "common": 0.45,
+      "rare": 0.35,
+      "epic": 0.2,
+      "legendary": 0
+    },
+    "difficulty": {
+      "score": 4,
+      "bestStatChance": 0.62,
+      "secondBestStatChance": 0.28,
+      "lowerStatChance": 0.1
+    }
+  },
+  {
+    "id": "the-gambler",
+    "name": "The Gambler",
+    "stage": 5,
+    "lore": "He bets with borrowed futures and never shows the hand that already lost.",
+    "backgroundAsset": "stage-5-bg",
+    "portraitAsset": "the-gambler-face",
+    "deckRarityMix": {
+      "common": 0.3,
+      "rare": 0.4,
+      "epic": 0.2,
+      "legendary": 0.1
+    },
+    "difficulty": {
+      "score": 5,
+      "bestStatChance": 0.7,
+      "secondBestStatChance": 0.22,
+      "lowerStatChance": 0.08
+    }
+  },
+  {
+    "id": "the-mime",
+    "name": "The Mime",
+    "stage": 6,
+    "lore": "He says nothing, but every silent gesture rewrites the rules of the room.",
+    "backgroundAsset": "stage-6-bg",
+    "portraitAsset": "the-mime-face",
+    "deckRarityMix": {
+      "common": 0.2,
+      "rare": 0.35,
+      "epic": 0.3,
+      "legendary": 0.15
+    },
+    "difficulty": {
+      "score": 6,
+      "bestStatChance": 0.78,
+      "secondBestStatChance": 0.17,
+      "lowerStatChance": 0.05
+    }
+  }
+]
