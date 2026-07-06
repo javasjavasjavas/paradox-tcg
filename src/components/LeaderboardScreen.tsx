@@ -72,7 +72,6 @@ export function LeaderboardScreen({ onBack, walletAddress }: LeaderboardScreenPr
       style={{ '--intro-bg': `url(${bgIntro})` } as CSSProperties}
     >
       <header className="leaderboard-header">
-        <span>SEASON RANKINGS</span>
         <h1>LEADERBOARD</h1>
         <p>TOP WALLETS, FINAL SCORES, ACTIVE CHARACTERS, AND HIGHEST STAGE REACHED.</p>
       </header>
@@ -84,7 +83,7 @@ export function LeaderboardScreen({ onBack, walletAddress }: LeaderboardScreenPr
           <span>WALLET ADDRESS</span>
           <span>X HANDLE</span>
           <span>CHARACTER</span>
-          <span>SCORE FINAL</span>
+          <span>FINAL SCORE</span>
           <span>STAGE</span>
         </div>
 
@@ -128,9 +127,15 @@ export function LeaderboardScreen({ onBack, walletAddress }: LeaderboardScreenPr
                   <span>{entry.character}</span>
                 </div>
 
-                <div className="leaderboard-row__score">
-                  <Zap size={15} strokeWidth={1.8} />
-                  <strong>{formatScore(entry.score)}</strong>
+                <div
+                  className="leaderboard-row__score"
+                  aria-label={`FINAL SCORE ${formatScore(entry.score)}`}
+                >
+                  <span className="leaderboard-row__score-label">FINAL SCORE</span>
+                  <span className="leaderboard-row__score-value">
+                    <Zap size={15} strokeWidth={1.8} />
+                    <strong>{formatScore(entry.score)}</strong>
+                  </span>
                 </div>
 
                 <div className="leaderboard-row__stage">

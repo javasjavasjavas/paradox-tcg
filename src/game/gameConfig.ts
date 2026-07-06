@@ -2,7 +2,7 @@ import type { GamePhase, StatKey } from './gameTypes'
 
 export const GAME_CONFIG = {
   handSize: 5,
-  deckSize: 10,
+  deckSize: 5,
   deckCoreLimit: 5,
   deckFillCommonChance: 0.8,
   maxRepeatedStatSelections: 3,

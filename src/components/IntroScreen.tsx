@@ -6,7 +6,6 @@ import {
   Layers,
   Loader2,
   Play,
-  Settings,
   Trophy,
   UserRound,
   Wallet,
@@ -42,11 +41,6 @@ const secondaryOptions: IntroMenuOption[] = [
     label: 'LEADERBOARD',
     detail: 'GLOBAL RANKINGS',
     Icon: Trophy,
-  },
-  {
-    label: 'OPTIONS',
-    detail: 'PROTOCOL STABLE',
-    Icon: Settings,
   },
 ]
 

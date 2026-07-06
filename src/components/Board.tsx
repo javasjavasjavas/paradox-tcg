@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, House, Music2, SkipForward, Volume2, VolumeX } from 'lucide-react'
+import { AlertTriangle, House, Music2, Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useState, type Dispatch } from 'react'
 import { BattleArena } from './BattleArena'
 import { BattleLog } from './BattleLog'
@@ -34,8 +34,6 @@ interface BoardProps {
   onSfxVolumeChange: (volume: number) => void
   onMainMenu: () => void
   onNextStage: () => void
-  onVictoryPreview: () => void
-  onGameOverPreview: () => void
 }
 
 const availableCount = (deck: CardData[], hand: CardData[], arenaCard?: CardData | null) =>
@@ -59,8 +57,6 @@ export function Board({
   onSfxVolumeChange,
   onMainMenu,
   onNextStage,
-  onVictoryPreview,
-  onGameOverPreview,
 }: BoardProps) {
   const [inspectedCard, setInspectedCard] = useState<CardData | null>(null)
   const [openAudioPanel, setOpenAudioPanel] = useState<'music' | 'sfx' | null>(null)
@@ -127,7 +123,6 @@ export function Board({
     dispatch({ type: 'select_stat', stat })
   }
 
-  const forceStageClear = () => dispatch({ type: 'force_stage_clear' })
   const musicPercent = Math.round(musicVolume * 100)
   const sfxPercent = Math.round(sfxVolume * 100)
 
@@ -300,18 +295,6 @@ export function Board({
         <aside className="board-column board-column--right">
           {matchControls}
           <RoundPanel turnNumber={state.turnNumber} />
-          <section className="side-panel match-next-panel">
-            <div className="panel-title">TEMPORARY FLOW</div>
-            <button
-              type="button"
-              className="intro-menu__item intro-menu__item--primary match-next-panel__button"
-              onClick={forceStageClear}
-            >
-              <SkipForward size={18} strokeWidth={1.8} />
-              <span>NEXT MATCH</span>
-              <small>STAGE CLEAR TEST</small>
-            </button>
-          </section>
           <BattleLog entries={state.log} />
         </aside>
       </div>
@@ -352,8 +335,6 @@ export function Board({
         onAddReward={() => dispatch({ type: 'add_stage_reward' })}
         onDiscardReward={() => dispatch({ type: 'discard_stage_reward' })}
         onNextStage={onNextStage}
-        onVictoryPreview={onVictoryPreview}
-        onGameOverPreview={onGameOverPreview}
       />
     </main>
   )

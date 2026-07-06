@@ -1,8 +1,9 @@
 import type { Session } from '@supabase/supabase-js'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Board } from './components/Board'
 import { CollectionScreen } from './components/CollectionScreen'
+import { EntryGate } from './components/EntryGate'
 import { IntroScreen } from './components/IntroScreen'
 import { LeaderboardScreen } from './components/LeaderboardScreen'
 import { RunEndScreen } from './components/RunEndScreen'
@@ -16,8 +17,9 @@ import { supabase } from './supabase/client'
 import {
   clearPendingLeaderboardRun,
   getXHandleFromSession,
+  notifyXAuthPopupCallback,
   readPendingLeaderboardRun,
-  signInWithX,
+  signInWithXPopup,
   submitLeaderboardRun,
   writePendingLeaderboardRun,
   type LeaderboardRunResult,
@@ -27,6 +29,7 @@ import { useWalletCollection } from './wallet/useWalletCollection'
 
 const deckStorageKey = 'paradox-tcg.deck-token-ids'
 const playerPfpStorageKey = 'paradox-tcg.player-pfp-token-id'
+const entryGateMobileQuery = '(max-width: 820px), (pointer: coarse)'
 
 const fastTiming = {
   opponentThinkMs: 160,
@@ -54,6 +57,14 @@ function loadStoredPlayerPfpTokenId() {
   }
 }
 
+function getEntryGateIsMobile() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false
+  }
+
+  return window.matchMedia(entryGateMobileQuery).matches
+}
+
 function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState)
   const [screen, setScreen] = useState<
@@ -75,6 +86,10 @@ function App() {
     'idle' | 'authenticating' | 'submitting' | 'submitted' | 'error'
   >('idle')
   const [leaderboardNotice, setLeaderboardNotice] = useState<string | null>(null)
+  const [entryGateAccepted, setEntryGateAccepted] = useState(false)
+  const [entryGateIsMobile, setEntryGateIsMobile] = useState(getEntryGateIsMobile)
+  const pendingLeaderboardSubmitRef = useRef(false)
+  const runVictoryCuePlayedRef = useRef(false)
   const wallet = useWalletCollection()
   const timing = skipAnimations ? fastTiming : GAME_CONFIG.timing
   const currentStage = stages[stageIndex] ?? stages[0]
@@ -111,6 +126,16 @@ function App() {
   const xHandle = getXHandleFromSession(supabaseSession)
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia(entryGateMobileQuery)
+    const handleChange = () => setEntryGateIsMobile(mediaQuery.matches)
+
+    handleChange()
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
     if (!supabase) return
 
     let isMounted = true
@@ -140,6 +165,9 @@ function App() {
 
     const pendingRun = readPendingLeaderboardRun()
     if (!pendingRun) return
+    if (pendingLeaderboardSubmitRef.current) return
+
+    pendingLeaderboardSubmitRef.current = true
 
     let isMounted = true
 
@@ -166,11 +194,24 @@ function App() {
         setLeaderboardStatus('error')
         setLeaderboardNotice(error instanceof Error ? error.message : 'SUPABASE SCORE SUBMIT FAILED.')
       })
+      .finally(() => {
+        pendingLeaderboardSubmitRef.current = false
+      })
 
     return () => {
       isMounted = false
     }
   }, [supabaseSession])
+
+  useEffect(() => {
+    notifyXAuthPopupCallback(supabaseSession)
+  }, [supabaseSession])
+
+  useEffect(() => {
+    if (screen === 'leaderboard') {
+      void soundManager.startIntroMusic()
+    }
+  }, [screen])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -245,7 +286,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (screen !== 'game_intro') {
+    if (!entryGateAccepted || screen !== 'game_intro') {
       return
     }
 
@@ -275,7 +316,7 @@ function App() {
       listening = false
       removeIntroMusicListeners()
     }
-  }, [screen])
+  }, [entryGateAccepted, screen])
 
   useEffect(() => {
     if (screen === 'stage_intro' && currentStage.stage === 1) {
@@ -372,9 +413,13 @@ function App() {
   useEffect(() => {
     if (state.phase !== 'capture_animation' || !state.battleResult) return
 
-    if (!state.battleResult.isDraw) {
-      soundManager.play(state.battleResult.winningPlayer === 'player' ? 'round_win' : 'round_lose')
-    }
+    soundManager.play(
+      state.battleResult.isDraw
+        ? 'draw'
+        : state.battleResult.winningPlayer === 'player'
+          ? 'round_win'
+          : 'round_lose',
+    )
 
     const timer = window.setTimeout(() => {
       dispatch({ type: 'complete_capture' })
@@ -397,14 +442,34 @@ function App() {
   useEffect(() => {
     if (state.phase !== 'game_over' || !state.winner) return
 
-    soundManager.play(state.winner === 'player' ? 'stage_clear' : 'round_lose')
+    soundManager.play(state.winner === 'player' ? 'stage_clear' : 'defeat')
   }, [state.phase, state.winner])
+
+  useEffect(() => {
+    if (screen !== 'run_victory') {
+      runVictoryCuePlayedRef.current = false
+      return
+    }
+
+    if (runVictoryCuePlayedRef.current) return
+
+    runVictoryCuePlayedRef.current = true
+    soundManager.play('victory')
+  }, [screen])
 
   function handleOpenCollection() {
     void soundManager.startIntroMusic()
     soundManager.play('card_select')
     setStartGateMessage(null)
     setScreen('collection')
+  }
+
+  function handleAcceptEntryGate() {
+    if (entryGateIsMobile) return
+
+    setEntryGateAccepted(true)
+    soundManager.playWelcome()
+    void soundManager.startIntroMusic()
   }
 
   function handleOpenLeaderboard() {
@@ -519,8 +584,16 @@ function App() {
 
     if (!supabaseSession) {
       setLeaderboardStatus('authenticating')
-      setLeaderboardNotice('REDIRECTING TO X FOR ACCOUNT LINK.')
-      await signInWithX()
+      setLeaderboardNotice('OPENING X CONNECT POPUP. KEEP THIS PAGE OPEN.')
+
+      try {
+        const session = await signInWithXPopup()
+        setSupabaseSession(session)
+      } catch (error) {
+        setLeaderboardStatus('error')
+        setLeaderboardNotice(error instanceof Error ? error.message : 'X ACCOUNT LINK FAILED.')
+      }
+
       return
     }
 
@@ -601,24 +674,14 @@ function App() {
     })
   }
 
-  function handleVictoryPreview() {
-    soundManager.play('turn_change')
-    applyCurrentStageProgress()
-    setScreen('run_victory')
-  }
-
-  function handleGameOverPreview() {
-    soundManager.play('round_lose')
-    setScreen('game_over')
-  }
-
   const visibleScreen =
     screen === 'match' && state.phase === 'game_over' && state.winner === 'opponent'
       ? 'game_over'
       : screen
 
-  const screenContent =
-    visibleScreen === 'game_intro' ? (
+  const screenContent = !entryGateAccepted ? (
+    <EntryGate isMobile={entryGateIsMobile} onAccept={handleAcceptEntryGate} />
+  ) : visibleScreen === 'game_intro' ? (
       <IntroScreen
         wallet={wallet}
         gateMessage={canStartMatch ? null : startGateMessage}
@@ -691,15 +754,13 @@ function App() {
         onSfxVolumeChange={handleSfxVolumeChange}
         onMainMenu={handleReturnToMainMenu}
         onNextStage={handleNextStage}
-        onVictoryPreview={handleVictoryPreview}
-        onGameOverPreview={handleGameOverPreview}
       />
     )
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={visibleScreen}
+        key={!entryGateAccepted ? (entryGateIsMobile ? 'entry_gate_mobile' : 'entry_gate') : visibleScreen}
         className="screen-transition"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

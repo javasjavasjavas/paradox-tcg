@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, ChevronRight, Plus, Sparkles, Trophy, X } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Plus, Sparkles, X } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Card } from './Card'
 import type { GameState } from '../game/gameTypes'
@@ -12,8 +12,6 @@ interface VictoryOverlayProps {
   onAddReward: () => void
   onDiscardReward: () => void
   onNextStage: () => void
-  onVictoryPreview: () => void
-  onGameOverPreview: () => void
 }
 
 export function VictoryOverlay({
@@ -24,8 +22,6 @@ export function VictoryOverlay({
   onAddReward,
   onDiscardReward,
   onNextStage,
-  onVictoryPreview,
-  onGameOverPreview,
 }: VictoryOverlayProps) {
   const [nextStageNoticeId, setNextStageNoticeId] = useState(0)
 
@@ -55,15 +51,6 @@ export function VictoryOverlay({
     }
 
     onNextStage()
-  }
-
-  function handleVictoryPreviewClick() {
-    if (rewardPending) {
-      setNextStageNoticeId((current) => current + 1)
-      return
-    }
-
-    onVictoryPreview()
   }
 
   if (state.winner !== 'player') return null
@@ -138,27 +125,6 @@ export function VictoryOverlay({
                 </small>
               </button>
 
-              <button
-                type="button"
-                className="intro-menu__item stage-clear__victory-preview"
-                aria-disabled={rewardPending}
-                data-locked={rewardPending}
-                onClick={handleVictoryPreviewClick}
-              >
-                <Trophy size={20} strokeWidth={1.8} />
-                <span>VIEW VICTORY</span>
-                <small>{rewardPending ? 'CHOOSE REWARD' : 'DEBUG PREVIEW'}</small>
-              </button>
-
-              <button
-                type="button"
-                className="intro-menu__item stage-clear__game-over-preview"
-                onClick={onGameOverPreview}
-              >
-                <AlertTriangle size={20} strokeWidth={1.8} />
-                <span>FORCE DEFEAT</span>
-                <small>GAME OVER PREVIEW</small>
-              </button>
             </div>
           </div>
         </div>

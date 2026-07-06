@@ -1,4 +1,5 @@
 export type SoundCue =
+  | 'welcome'
   | 'ui_hover'
   | 'ui_click'
   | 'card_hover'
@@ -6,6 +7,7 @@ export type SoundCue =
   | 'card_move'
   | 'stat_select'
   | 'battle_compare'
+  | 'draw'
   | 'round_win'
   | 'round_lose'
   | 'win'
@@ -116,6 +118,11 @@ function applySfxVolume() {
 }
 
 const sampleConfigs: Partial<Record<SoundCue, { path: string; poolSize: number; volume: number }>> = {
+  welcome: {
+    path: '/audio/welcome.mp3',
+    poolSize: 1,
+    volume: 1,
+  },
   card_hover: {
     path: '/audio/card1.mp3',
     poolSize: 4,
@@ -145,6 +152,21 @@ const sampleConfigs: Partial<Record<SoundCue, { path: string; poolSize: number; 
     path: '/audio/stage-clear.mp3',
     poolSize: 1,
     volume: 0.76,
+  },
+  draw: {
+    path: '/audio/draw.mp3',
+    poolSize: 2,
+    volume: 0.92,
+  },
+  victory: {
+    path: '/audio/Victory.mp3',
+    poolSize: 1,
+    volume: 1,
+  },
+  defeat: {
+    path: '/audio/game-over.mp3',
+    poolSize: 1,
+    volume: 1,
   },
 }
 const sampleBuffers = new Map<SoundCue, AudioBuffer>()
@@ -408,14 +430,18 @@ function playSample(cue: SoundCue) {
 }
 
 const cueCooldowns: Partial<Record<SoundCue, number>> = {
+  welcome: 900,
   ui_hover: 42,
   ui_click: 38,
   card_hover: 130,
   card_select: 36,
+  draw: 180,
   round_win: 180,
   round_lose: 180,
   stage_one: 600,
   stage_clear: 600,
+  victory: 900,
+  defeat: 900,
   stat_select: 44,
   turn_change: 70,
   warning: 120,
@@ -436,6 +462,12 @@ function playCue(cue: SoundCue) {
   if (playSample(cue)) return
 
   switch (cue) {
+    case 'welcome':
+      playChord([261.63, 329.63, 392], 0, 0.24, 0.18)
+      playChord([392, 523.25, 659.25], 0.16, 0.32, 0.2)
+      playNoise({ duration: 0.18, filterFrequency: 3600, start: 0.08, volume: 0.045 })
+      break
+
     case 'ui_hover':
       playTone({ duration: 0.045, endFrequency: 860, frequency: 620, type: 'sine', volume: 0.045 })
       playTone({ duration: 0.035, frequency: 1240, start: 0.018, type: 'triangle', volume: 0.026 })
@@ -472,6 +504,12 @@ function playCue(cue: SoundCue) {
       playTone({ duration: 0.28, endFrequency: 74, frequency: 150, type: 'sawtooth', volume: 0.12 })
       playTone({ duration: 0.18, frequency: 720, start: 0.04, type: 'square', volume: 0.05 })
       playTone({ duration: 0.2, frequency: 965, start: 0.052, type: 'triangle', volume: 0.045 })
+      break
+
+    case 'draw':
+      playTone({ duration: 0.11, frequency: 360, type: 'triangle', volume: 0.1 })
+      playTone({ duration: 0.11, frequency: 360, start: 0.09, type: 'triangle', volume: 0.1 })
+      playNoise({ duration: 0.12, filterFrequency: 1900, filterType: 'bandpass', start: 0.04, volume: 0.045 })
       break
 
     case 'win':
@@ -541,6 +579,10 @@ export const soundManager = {
     } catch {
       // Audio should never block the game loop.
     }
+  },
+
+  playWelcome() {
+    this.play('welcome')
   },
 
   async startIntroMusic() {

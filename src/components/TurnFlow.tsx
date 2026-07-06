@@ -5,7 +5,7 @@ interface TurnFlowProps {
   state: GameState
 }
 
-const order: PlayerId[] = ['opponent', 'player', 'opponent']
+const order: PlayerId[] = ['player', 'opponent', 'player']
 
 const phaseDescription = (state: GameState) => {
   switch (state.phase) {
@@ -45,14 +45,18 @@ const phaseDescription = (state: GameState) => {
 }
 
 export function TurnFlow({ state }: TurnFlowProps) {
-  const activeIndex = state.activePlayer === 'player' ? 1 : 0
+  const activeIndex = state.activePlayer === 'player' ? 0 : 1
 
   return (
     <section className="side-panel turn-flow">
       <div className="panel-title">Turn Order</div>
       <div className="turn-flow__list">
         {order.map((player, index) => (
-          <div className="turn-flow__item" data-active={activeIndex === index} key={`${player}-${index}`}>
+          <div
+            className="turn-flow__item"
+            data-active={activeIndex === index}
+            key={`${player}-${index}`}
+          >
             <strong>{(index + 1).toString().padStart(2, '0')}</strong>
             <span>{player === 'player' ? 'You' : 'Opponent'}</span>
           </div>
