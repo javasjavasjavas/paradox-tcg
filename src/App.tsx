@@ -192,12 +192,16 @@ function App() {
 
         return submitLeaderboardRun(pendingRun)
       })
-      .then(() => {
+      .then((leaderboardEntry) => {
         if (!isMounted) return
 
         clearPendingLeaderboardRun()
         setLeaderboardStatus('submitted')
-        setLeaderboardNotice('SCORE SUBMITTED TO THE LEADERBOARD.')
+        setLeaderboardNotice(
+          leaderboardEntry && leaderboardEntry.score > pendingRun.score
+            ? 'EXISTING HIGH SCORE KEPT ON THE LEADERBOARD.'
+            : 'BEST SCORE SUBMITTED TO THE LEADERBOARD.',
+        )
         setScreen('leaderboard')
       })
       .catch((error) => {
@@ -612,10 +616,14 @@ function App() {
     try {
       setLeaderboardStatus('submitting')
       setLeaderboardNotice('SYNCING SCORE TO SUPABASE.')
-      await submitLeaderboardRun(pendingRun)
+      const leaderboardEntry = await submitLeaderboardRun(pendingRun)
       clearPendingLeaderboardRun()
       setLeaderboardStatus('submitted')
-      setLeaderboardNotice('SCORE SUBMITTED TO THE LEADERBOARD.')
+      setLeaderboardNotice(
+        leaderboardEntry.score > pendingRun.score
+          ? 'EXISTING HIGH SCORE KEPT ON THE LEADERBOARD.'
+          : 'BEST SCORE SUBMITTED TO THE LEADERBOARD.',
+      )
       setScreen('leaderboard')
     } catch (error) {
       setLeaderboardStatus('error')
@@ -653,6 +661,7 @@ function App() {
         opponentId: currentStage.id,
         playerCoreTokenIds: activeDeckTokenIds,
         rewardTokenIds: runRewardTokenIds,
+        stageNumber: currentStage.stage,
       },
     })
     setScreen('match')

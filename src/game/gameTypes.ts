@@ -74,6 +74,7 @@ export interface MatchDeckSeed {
   playerCoreTokenIds: string[]
   ownedTokenIds: string[]
   rewardTokenIds?: string[]
+  stageNumber?: number
 }
 
 export interface StatLimitNotice {
@@ -113,6 +114,7 @@ export interface GameState {
   }
   statLimitNotice: StatLimitNotice | null
   opponentDialogue: OpponentDialogue | null
+  threeRoundWinBonusCount: number
   arena: {
     playerCard: CardData | null
     opponentCard: CardData | null

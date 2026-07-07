@@ -2,12 +2,14 @@ import { resolveBattle } from './battleResolver'
 import { buildMatchDecks, buildRandomStageRewardCard } from './deckBuilder'
 import { GAME_CONFIG, STAT_LABELS } from './gameConfig'
 import type { BattleLogEntry, CardData, GameAction, GameState, MatchDeckSeed, OpponentDialogue, PlayerId } from './gameTypes'
+import { calculateCompletedStageScore } from './scoring'
 
 const emptyDeckSeed: MatchDeckSeed = {
   opponentId: 'remote-viewer',
   ownedTokenIds: [],
   playerCoreTokenIds: [],
   rewardTokenIds: [],
+  stageNumber: 1,
 }
 
 const drawToLimit = (deck: CardData[], hand: CardData[]) => {
@@ -54,17 +56,14 @@ const availableCards = (state: GameState, player: PlayerId) =>
     ? state.playerDeck.length + state.playerHand.length
     : state.opponentDeck.length + state.opponentHand.length
 
-const totalPlayerCards = (state: GameState) =>
-  state.playerDeck.length + state.playerHand.length + (state.arena.playerCard ? 1 : 0)
-
 const calculateStageScore = (state: GameState, winner: PlayerId) => {
   if (winner !== 'player') return 0
 
-  const deckScore = totalPlayerCards(state) * 24
-  const captureScore = state.playerCaptured.length * 90
-  const paceBonus = Math.max(0, 28 - state.turnNumber) * 12
-
-  return deckScore + captureScore + paceBonus
+  return calculateCompletedStageScore({
+    cardsLost: state.opponentCaptured.length,
+    stageNumber: state.deckSeed.stageNumber ?? 1,
+    threeRoundWinBonusCount: state.threeRoundWinBonusCount,
+  })
 }
 
 const createStageReward = (winner: PlayerId, opponentId: string | undefined) =>
@@ -130,6 +129,7 @@ export function createInitialState(deckSeed: MatchDeckSeed = emptyDeckSeed): Gam
     },
     statLimitNotice: null,
     opponentDialogue: null,
+    threeRoundWinBonusCount: 0,
     arena: {
       playerCard: null,
       opponentCard: null,
@@ -354,6 +354,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         player: result.winningPlayer === 'player' ? state.roundWinStreak.player + 1 : 0,
         opponent: result.winningPlayer === 'opponent' ? state.roundWinStreak.opponent + 1 : 0,
       }
+      const playerCompletedThreeRoundBonus =
+        result.winningPlayer === 'player' &&
+        nextRoundWinStreak.player > 0 &&
+        nextRoundWinStreak.player % 3 === 0
+      const threeRoundWinBonusCount =
+        state.threeRoundWinBonusCount + (playerCompletedThreeRoundBonus ? 1 : 0)
       const opponentDialogue = result.winningPlayer
         ? getStreakDialogue(
             state,
@@ -383,6 +389,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         opponentLastPlayedCardId: state.arena.opponentCard?.id ?? state.opponentLastPlayedCardId,
         roundWinStreak: nextRoundWinStreak,
         opponentDialogue,
+        threeRoundWinBonusCount,
         arena: { playerCard: null, opponentCard: null },
         battleResult: null,
         turnNumber: state.turnNumber + 1,

@@ -25,8 +25,7 @@ export function VictoryOverlay({
 }: VictoryOverlayProps) {
   const [nextStageNoticeId, setNextStageNoticeId] = useState(0)
 
-  const playerDeckCount = state.playerDeck.length + state.playerHand.length
-  const opponentDeckCount = state.opponentDeck.length + state.opponentHand.length
+  const playerLostCards = state.opponentCaptured.length
   const reward = state.stageReward
   const rewardPending = Boolean(reward && reward.status === 'pending')
   const rewardAdded = reward?.status === 'added'
@@ -87,7 +86,7 @@ export function VictoryOverlay({
               <article className="stage-clear__reward-box stage-clear__reward-box--score">
                 <span>SCORE OBTAINED</span>
                 <strong>+{state.scoreObtained}</strong>
-                <em>FINAL DECK {playerDeckCount} / ENEMY {opponentDeckCount}</em>
+                <em>LOST {playerLostCards} / 3-WIN BONUS {state.threeRoundWinBonusCount}</em>
               </article>
             </div>
 
