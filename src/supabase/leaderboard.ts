@@ -138,6 +138,13 @@ function renderPopupLoadingState(popup: Window) {
   }
 }
 
+function getXAuthRedirectUrl() {
+  const redirectUrl = new URL(window.location.origin)
+  redirectUrl.searchParams.set(xAuthPopupParam, '1')
+
+  return redirectUrl.toString()
+}
+
 function waitForXAuthPopup(popup: Window) {
   if (!supabase) {
     return Promise.reject(new Error('Supabase is not configured.'))
@@ -245,7 +252,7 @@ export async function signInWithXPopup() {
 
   renderPopupLoadingState(popup)
 
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = getXAuthRedirectUrl()
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'x',
     options: {

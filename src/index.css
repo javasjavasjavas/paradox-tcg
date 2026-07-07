@@ -2766,12 +2766,26 @@ button {
   margin-top: clamp(22px, 3vh, 36px);
 }
 
+.run-end-screen--game-over .run-end-screen__defeated {
+  position: fixed;
+  top: clamp(20rem, 31vh, 29rem);
+  left: var(--screen-edge-inline);
+  z-index: 4;
+  width: min(54rem, calc(100vw - var(--screen-edge-inline) - var(--screen-edge-inline)));
+  margin: 0;
+  text-align: left;
+}
+
 .run-end-screen__defeated-list {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   margin-top: 14px;
+}
+
+.run-end-screen--game-over .run-end-screen__defeated-list {
+  justify-content: flex-start;
 }
 
 .run-end-screen__defeated-list span,
@@ -2917,7 +2931,8 @@ button {
   }
 
   .run-end-screen--game-over .run-end-screen__content > p,
-  .run-end-screen--game-over .run-end-screen__summary {
+  .run-end-screen--game-over .run-end-screen__summary,
+  .run-end-screen--game-over .run-end-screen__defeated {
     position: static;
     width: min(54rem, 100%);
     margin-top: clamp(28px, 4vh, 50px);
