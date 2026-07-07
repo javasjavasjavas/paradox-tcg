@@ -13,6 +13,11 @@ export type SoundCue =
   | 'win'
   | 'capture'
   | 'stage_one'
+  | 'stage_two'
+  | 'stage_three'
+  | 'stage_four'
+  | 'stage_five'
+  | 'stage_six'
   | 'stage_clear'
   | 'turn_change'
   | 'victory'
@@ -145,6 +150,31 @@ const sampleConfigs: Partial<Record<SoundCue, { path: string; poolSize: number; 
   },
   stage_one: {
     path: '/audio/stage-one.mp3',
+    poolSize: 1,
+    volume: 0.72,
+  },
+  stage_two: {
+    path: '/audio/stage-two.mp3',
+    poolSize: 1,
+    volume: 0.72,
+  },
+  stage_three: {
+    path: '/audio/stage-three.mp3',
+    poolSize: 1,
+    volume: 0.72,
+  },
+  stage_four: {
+    path: '/audio/stage-four.mp3',
+    poolSize: 1,
+    volume: 0.72,
+  },
+  stage_five: {
+    path: '/audio/stage-five.mp3',
+    poolSize: 1,
+    volume: 0.72,
+  },
+  stage_six: {
+    path: '/audio/stage-six.mp3',
     poolSize: 1,
     volume: 0.72,
   },
@@ -439,6 +469,11 @@ const cueCooldowns: Partial<Record<SoundCue, number>> = {
   round_win: 180,
   round_lose: 180,
   stage_one: 600,
+  stage_two: 600,
+  stage_three: 600,
+  stage_four: 600,
+  stage_five: 600,
+  stage_six: 600,
   stage_clear: 600,
   victory: 900,
   defeat: 900,
@@ -583,6 +618,22 @@ export const soundManager = {
 
   playWelcome() {
     this.play('welcome')
+  },
+
+  playStageIntro(stageNumber: number) {
+    const stageIntroCues: Partial<Record<number, SoundCue>> = {
+      1: 'stage_one',
+      2: 'stage_two',
+      3: 'stage_three',
+      4: 'stage_four',
+      5: 'stage_five',
+      6: 'stage_six',
+    }
+    const cue = stageIntroCues[stageNumber]
+
+    if (cue) {
+      this.play(cue)
+    }
   },
 
   async startIntroMusic() {

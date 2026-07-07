@@ -30,6 +30,7 @@ import { useWalletCollection } from './wallet/useWalletCollection'
 const deckStorageKey = 'paradox-tcg.deck-token-ids'
 const playerPfpStorageKey = 'paradox-tcg.player-pfp-token-id'
 const entryGateMobileQuery = '(max-width: 820px), (pointer: coarse)'
+const noTradingCardsMessage = 'YOU NEED AT LEAST ONE TRADING CARD IN THIS WALLET TO PLAY.'
 
 const fastTiming = {
   opponentThinkMs: 160,
@@ -124,6 +125,17 @@ function App() {
         ? `${activeDeckTokenIds.length} DECK CORE`
         : 'TRADING CARD REQUIRED'
   const xHandle = getXHandleFromSession(supabaseSession)
+  const walletHasNoTradingCards = Boolean(
+    screen === 'game_intro' &&
+      wallet.connectedWallet &&
+      wallet.walletStatus === 'ready' &&
+      wallet.tradingCardNfts.length === 0,
+  )
+  const introGateMessage = walletHasNoTradingCards
+    ? noTradingCardsMessage
+    : startGateMessage === noTradingCardsMessage
+      ? null
+      : startGateMessage
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(entryGateMobileQuery)
@@ -319,8 +331,8 @@ function App() {
   }, [entryGateAccepted, screen])
 
   useEffect(() => {
-    if (screen === 'stage_intro' && currentStage.stage === 1) {
-      soundManager.play('stage_one')
+    if (screen === 'stage_intro') {
+      soundManager.playStageIntro(currentStage.stage)
     }
   }, [currentStage.stage, screen])
 
@@ -517,7 +529,7 @@ function App() {
 
     if (wallet.tradingCardNfts.length === 0) {
       soundManager.play('warning')
-      setStartGateMessage('YOU NEED AT LEAST ONE TRADING CARD IN THIS WALLET TO PLAY.')
+      setStartGateMessage(noTradingCardsMessage)
       return
     }
 
@@ -684,7 +696,7 @@ function App() {
   ) : visibleScreen === 'game_intro' ? (
       <IntroScreen
         wallet={wallet}
-        gateMessage={canStartMatch ? null : startGateMessage}
+        gateMessage={canStartMatch ? null : introGateMessage}
         selectedPfpTokenId={selectedPfpTokenId}
         startGameDetail={startGameDetail}
         onOpenCollection={handleOpenCollection}
