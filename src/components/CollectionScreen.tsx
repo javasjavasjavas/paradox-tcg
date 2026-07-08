@@ -100,6 +100,7 @@ export function CollectionScreen({
                 wallet.tradingCardNfts.map((nft, index) => {
                   const isSelected = selectedTokenIds.has(nft.tokenId)
                   const isAddDisabled = !isSelected && isDeckFull
+                  const deckActionLabel = isSelected ? 'IN DECK' : isAddDisabled ? 'DECK FULL' : 'ADD TO DECK'
 
                   return (
                     <motion.article
@@ -125,11 +126,12 @@ export function CollectionScreen({
                           className="collection-card__deck-toggle"
                           data-selected={isSelected}
                           disabled={isAddDisabled}
+                          aria-pressed={isSelected}
                           onClick={() => onToggleDeckToken(nft.tokenId)}
                           title={isAddDisabled ? 'INITIAL HAND IS FULL' : undefined}
                         >
                           <CheckCircle2 size={16} strokeWidth={1.9} />
-                          <span>ADD TO DECK</span>
+                          <span>{deckActionLabel}</span>
                         </button>
                       </div>
                     </motion.article>
@@ -147,7 +149,7 @@ export function CollectionScreen({
               <small>{wallet.paradoxPfpNfts.length} FOUND</small>
             </header>
 
-            <div className="collection-grid collection-grid--pfp">
+            <div className="collection-grid collection-grid--pfp" role="radiogroup" aria-label="ACTIVE PARADOX PFP">
               {wallet.walletStatus === 'loading_nfts' ? (
                 <p className="collection-empty">SCANNING PARADOX PFP...</p>
               ) : wallet.paradoxPfpNfts.length ? (
@@ -177,6 +179,7 @@ export function CollectionScreen({
                           type="button"
                           className="collection-card__deck-toggle collection-card__character-toggle"
                           data-selected={isSelected}
+                          aria-pressed={isSelected}
                           onClick={() => onSelectPfpToken(nft.tokenId)}
                         >
                           <UserRound size={16} strokeWidth={1.9} />

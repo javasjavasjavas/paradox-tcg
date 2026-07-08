@@ -44,7 +44,11 @@ function loadStoredDeckTokenIds() {
   try {
     const stored = window.localStorage.getItem(deckStorageKey)
     const parsed = stored ? JSON.parse(stored) : []
-    return Array.isArray(parsed) ? parsed.filter((tokenId) => typeof tokenId === 'string') : []
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((tokenId) => typeof tokenId === 'string')
+          .slice(0, GAME_CONFIG.deckCoreLimit)
+      : []
   } catch {
     return []
   }
@@ -103,14 +107,14 @@ function App() {
     [selectedPfpTokenId, wallet.paradoxPfpNfts],
   )
   const activeDeckTokenIds = useMemo(() => {
-    const limitedDeckTokenIds = deckTokenIds.slice(0, GAME_CONFIG.deckCoreLimit)
-
     if (!wallet.connectedWallet || wallet.walletStatus !== 'ready') {
-      return limitedDeckTokenIds
+      return deckTokenIds.slice(0, GAME_CONFIG.deckCoreLimit)
     }
 
     const ownedTokenIdSet = new Set(ownedTokenIds)
-    return limitedDeckTokenIds.filter((tokenId) => ownedTokenIdSet.has(tokenId))
+    return deckTokenIds
+      .filter((tokenId) => ownedTokenIdSet.has(tokenId))
+      .slice(0, GAME_CONFIG.deckCoreLimit)
   }, [deckTokenIds, ownedTokenIds, wallet.connectedWallet, wallet.walletStatus])
   const canStartMatch = Boolean(
     wallet.connectedWallet &&
@@ -631,10 +635,29 @@ function App() {
     }
   }
 
-  function handleToggleDeckToken(tokenId: string) {
-    soundManager.play('card_select')
-    const ownedTokenIdSet = new Set(ownedTokenIds)
+  function handleSelectPfpToken(tokenId: string) {
+    if (!wallet.paradoxPfpNfts.some((nft) => nft.tokenId === tokenId)) {
+      return
+    }
 
+    setSelectedPfpTokenId(tokenId)
+  }
+
+  function handleToggleDeckToken(tokenId: string) {
+    const ownedTokenIdSet = new Set(ownedTokenIds)
+    const isSelected = activeDeckTokenIds.includes(tokenId)
+    const canAddToken = activeDeckTokenIds.length < GAME_CONFIG.deckCoreLimit
+
+    if (!ownedTokenIdSet.has(tokenId) || (!isSelected && !canAddToken)) {
+      setDeckTokenIds((current) =>
+        current
+          .filter((selectedTokenId) => ownedTokenIdSet.has(selectedTokenId))
+          .slice(0, GAME_CONFIG.deckCoreLimit),
+      )
+      return
+    }
+
+    soundManager.play('card_select')
     setDeckTokenIds((current) => {
       const currentForWallet = current
         .filter((selectedTokenId) => ownedTokenIdSet.has(selectedTokenId))
@@ -710,7 +733,7 @@ function App() {
         startGameDetail={startGameDetail}
         onOpenCollection={handleOpenCollection}
         onOpenLeaderboard={handleOpenLeaderboard}
-        onSelectPfpToken={setSelectedPfpTokenId}
+        onSelectPfpToken={handleSelectPfpToken}
         onStartGame={handleStartGame}
       />
     ) : visibleScreen === 'collection' ? (
@@ -720,7 +743,7 @@ function App() {
         deckTokenIds={activeDeckTokenIds}
         selectedPfpTokenId={selectedPfpTokenId}
         onBack={() => setScreen('game_intro')}
-        onSelectPfpToken={setSelectedPfpTokenId}
+        onSelectPfpToken={handleSelectPfpToken}
         onToggleDeckToken={handleToggleDeckToken}
       />
     ) : visibleScreen === 'leaderboard' ? (

@@ -58,6 +58,8 @@ export function getTradingCardNftConfig(): TradingCardNftConfig {
   const chainId = String(import.meta.env.VITE_TCG_NFT_CHAIN_ID ?? '').trim()
   const gatewayUrl = String(import.meta.env.VITE_TCG_IPFS_GATEWAY ?? 'https://ipfs.io/ipfs/').trim()
   const maxTokens = Number(import.meta.env.VITE_TCG_NFT_MAX_TOKENS ?? 24)
+  const ownerScanLimit = Number(import.meta.env.VITE_TCG_NFT_OWNER_SCAN_LIMIT ?? 5000)
+  const rpcUrl = String(import.meta.env.VITE_TCG_NFT_RPC_URL ?? 'https://ethereum-rpc.publicnode.com').trim()
   const startBlock = String(import.meta.env.VITE_TCG_NFT_START_BLOCK ?? '').trim()
 
   return {
@@ -65,6 +67,8 @@ export function getTradingCardNftConfig(): TradingCardNftConfig {
     contractAddress: contractAddress || undefined,
     gatewayUrl: gatewayUrl.endsWith('/') ? gatewayUrl : `${gatewayUrl}/`,
     maxTokens: Number.isFinite(maxTokens) ? Math.max(1, Math.min(maxTokens, 80)) : 24,
+    ownerScanLimit: Number.isFinite(ownerScanLimit) ? Math.max(0, Math.min(ownerScanLimit, 10_000)) : 5000,
+    rpcUrl: rpcUrl || undefined,
     startBlock: startBlock ? `0x${BigInt(startBlock).toString(16)}` : undefined,
   }
 }
