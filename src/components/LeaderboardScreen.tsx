@@ -19,7 +19,7 @@ interface LeaderboardEntry {
   position: number
   score: number
   stage: number
-  xHandle: string
+  xHandle: string | null
 }
 
 function formatScore(score: number) {
@@ -119,7 +119,7 @@ export function LeaderboardScreen({ onBack, walletAddress }: LeaderboardScreenPr
 
                 <div className="leaderboard-row__metric">
                   <AtSign size={15} strokeWidth={1.8} />
-                  <span>{entry.xHandle}</span>
+                  <span>{entry.xHandle || 'WALLET ONLY'}</span>
                 </div>
 
                 <div className="leaderboard-row__metric">

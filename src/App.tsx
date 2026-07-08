@@ -1,4 +1,3 @@
-import type { Session } from '@supabase/supabase-js'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Board } from './components/Board'
@@ -13,15 +12,8 @@ import { chooseOpponentResponseCard, chooseOpponentTurn } from './game/ai'
 import { GAME_CONFIG } from './game/gameConfig'
 import { createInitialState, gameReducer } from './game/gameReducer'
 import { soundManager } from './game/soundManager'
-import { supabase } from './supabase/client'
 import {
-  clearPendingLeaderboardRun,
-  getXHandleFromSession,
-  notifyXAuthPopupCallback,
-  readPendingLeaderboardRun,
-  signInWithXPopup,
   submitLeaderboardRun,
-  writePendingLeaderboardRun,
   type LeaderboardRunResult,
   type PendingLeaderboardRun,
 } from './supabase/leaderboard'
@@ -86,14 +78,12 @@ function App() {
   const [startGateMessage, setStartGateMessage] = useState<string | null>(null)
   const [musicVolume, setMusicVolume] = useState(() => soundManager.getMusicVolume())
   const [sfxVolume, setSfxVolume] = useState(() => soundManager.getSfxVolume())
-  const [supabaseSession, setSupabaseSession] = useState<Session | null>(null)
   const [leaderboardStatus, setLeaderboardStatus] = useState<
-    'idle' | 'authenticating' | 'submitting' | 'submitted' | 'error'
+    'idle' | 'submitting' | 'submitted' | 'error'
   >('idle')
   const [leaderboardNotice, setLeaderboardNotice] = useState<string | null>(null)
   const [entryGateAccepted, setEntryGateAccepted] = useState(false)
   const [entryGateIsMobile, setEntryGateIsMobile] = useState(getEntryGateIsMobile)
-  const pendingLeaderboardSubmitRef = useRef(false)
   const runVictoryCuePlayedRef = useRef(false)
   const wallet = useWalletCollection()
   const timing = skipAnimations ? fastTiming : GAME_CONFIG.timing
@@ -128,7 +118,6 @@ function App() {
       : wallet.tradingCardNfts.length
         ? `${activeDeckTokenIds.length} DECK CORE`
         : 'TRADING CARD REQUIRED'
-  const xHandle = getXHandleFromSession(supabaseSession)
   const walletHasNoTradingCards = Boolean(
     screen === 'game_intro' &&
       wallet.connectedWallet &&
@@ -150,82 +139,6 @@ function App() {
 
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
-
-  useEffect(() => {
-    if (!supabase) return
-
-    let isMounted = true
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (isMounted) {
-        setSupabaseSession(data.session)
-      }
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) {
-        setSupabaseSession(session)
-      }
-    })
-
-    return () => {
-      isMounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!supabaseSession) return
-
-    const pendingRun = readPendingLeaderboardRun()
-    if (!pendingRun) return
-    if (pendingLeaderboardSubmitRef.current) return
-
-    pendingLeaderboardSubmitRef.current = true
-
-    let isMounted = true
-
-    void Promise.resolve()
-      .then(() => {
-        if (!isMounted) return
-
-        setLeaderboardStatus('submitting')
-        setLeaderboardNotice('X CONNECTED. SYNCING SCORE TO SUPABASE.')
-
-        return submitLeaderboardRun(pendingRun)
-      })
-      .then((leaderboardEntry) => {
-        if (!isMounted) return
-
-        clearPendingLeaderboardRun()
-        setLeaderboardStatus('submitted')
-        setLeaderboardNotice(
-          leaderboardEntry && leaderboardEntry.score > pendingRun.score
-            ? 'EXISTING HIGH SCORE KEPT ON THE LEADERBOARD.'
-            : 'BEST SCORE SUBMITTED TO THE LEADERBOARD.',
-        )
-        setScreen('leaderboard')
-      })
-      .catch((error) => {
-        if (!isMounted) return
-
-        setLeaderboardStatus('error')
-        setLeaderboardNotice(error instanceof Error ? error.message : 'SUPABASE SCORE SUBMIT FAILED.')
-      })
-      .finally(() => {
-        pendingLeaderboardSubmitRef.current = false
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [supabaseSession])
-
-  useEffect(() => {
-    notifyXAuthPopupCallback(supabaseSession)
-  }, [supabaseSession])
 
   useEffect(() => {
     if (screen === 'leaderboard') {
@@ -584,44 +497,20 @@ function App() {
     }
   }
 
-  async function handleConnectX(runResult: LeaderboardRunResult) {
+  async function handleSaveScore(runResult: LeaderboardRunResult, xHandle?: string | null) {
     soundManager.play('ui_click')
 
     const pendingRun = createLeaderboardRun(runResult)
     if (!pendingRun) {
       setLeaderboardStatus('error')
       setLeaderboardNotice('CONNECT A WALLET BEFORE SUBMITTING A SCORE.')
-      return
-    }
-
-    writePendingLeaderboardRun(pendingRun)
-
-    if (!supabase) {
-      setLeaderboardStatus('error')
-      setLeaderboardNotice('SUPABASE IS NOT CONFIGURED FOR THIS BUILD.')
-      return
-    }
-
-    if (!supabaseSession) {
-      setLeaderboardStatus('authenticating')
-      setLeaderboardNotice('OPENING X CONNECT POPUP. KEEP THIS PAGE OPEN.')
-
-      try {
-        const session = await signInWithXPopup()
-        setSupabaseSession(session)
-      } catch (error) {
-        setLeaderboardStatus('error')
-        setLeaderboardNotice(error instanceof Error ? error.message : 'X ACCOUNT LINK FAILED.')
-      }
-
-      return
+      return false
     }
 
     try {
       setLeaderboardStatus('submitting')
-      setLeaderboardNotice('SYNCING SCORE TO SUPABASE.')
-      const leaderboardEntry = await submitLeaderboardRun(pendingRun)
-      clearPendingLeaderboardRun()
+      setLeaderboardNotice('SAVING SCORE TO SUPABASE.')
+      const leaderboardEntry = await submitLeaderboardRun(pendingRun, xHandle)
       setLeaderboardStatus('submitted')
       setLeaderboardNotice(
         leaderboardEntry.score > pendingRun.score
@@ -629,9 +518,11 @@ function App() {
           : 'BEST SCORE SUBMITTED TO THE LEADERBOARD.',
       )
       setScreen('leaderboard')
+      return true
     } catch (error) {
       setLeaderboardStatus('error')
       setLeaderboardNotice(error instanceof Error ? error.message : 'SUPABASE SCORE SUBMIT FAILED.')
+      return false
     }
   }
 
@@ -761,9 +652,8 @@ function App() {
         leaderboardNotice={leaderboardNotice}
         leaderboardStatus={leaderboardStatus}
         score={runScore}
-        xHandle={xHandle}
-        onConnectX={() => handleConnectX('game_over')}
         onMainMenu={handleReturnToMainMenu}
+        onSaveScore={(xHandle) => handleSaveScore('game_over', xHandle)}
         onTryAgain={handleTryAgain}
       />
     ) : visibleScreen === 'run_victory' ? (
@@ -774,9 +664,8 @@ function App() {
         leaderboardNotice={leaderboardNotice}
         leaderboardStatus={leaderboardStatus}
         score={runScore}
-        xHandle={xHandle}
-        onConnectX={() => handleConnectX('victory')}
         onMainMenu={handleReturnToMainMenu}
+        onSaveScore={(xHandle) => handleSaveScore('victory', xHandle)}
         onTryAgain={handleTryAgain}
       />
     ) : (

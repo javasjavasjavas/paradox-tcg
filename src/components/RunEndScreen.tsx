@@ -1,19 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { House, RotateCcw, Users } from 'lucide-react'
+import { AtSign, House, RotateCcw, Save, Users, X } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
-import type { StageData } from '../data/stages'
 import victoryBackgroundUrl from '../assets/ui/victory-bg.jpg'
+import type { StageData } from '../data/stages'
 
 interface RunEndScreenProps {
   mode: 'game-over' | 'victory'
   opponent: StageData
   defeatedStages: StageData[]
   leaderboardNotice?: string | null
-  leaderboardStatus?: 'idle' | 'authenticating' | 'submitting' | 'submitted' | 'error'
+  leaderboardStatus?: 'idle' | 'submitting' | 'submitted' | 'error'
   score: number
-  xHandle?: string | null
-  onConnectX: () => Promise<void> | void
   onMainMenu: () => void
+  onSaveScore: (xHandle?: string | null) => Promise<boolean> | boolean
   onTryAgain: () => void
 }
 
@@ -24,38 +23,41 @@ export function RunEndScreen({
   leaderboardNotice,
   leaderboardStatus = 'idle',
   score,
-  xHandle,
-  onConnectX,
   onMainMenu,
+  onSaveScore,
   onTryAgain,
 }: RunEndScreenProps) {
-  const [connectNoticeId, setConnectNoticeId] = useState(0)
+  const [noticeId, setNoticeId] = useState(0)
+  const [isScoreModalOpen, setIsScoreModalOpen] = useState(false)
+  const [xHandleDraft, setXHandleDraft] = useState('')
   const isVictory = mode === 'victory'
   const defeatedCount = defeatedStages.length
   const headline = isVictory ? 'VICTORY!' : 'GAME OVER'
   const copy = isVictory
     ? 'ALL RIVAL SIGNALS HAVE BEEN BROKEN. THE RUN IS COMPLETE.'
     : `${opponent.name.toUpperCase()} BROKE YOUR DECK. REBUILD THE ROUTE AND TRY AGAIN.`
-  const isConnectingX = leaderboardStatus === 'authenticating'
   const isSubmittingScore = leaderboardStatus === 'submitting'
-  const isConnectDisabled = isConnectingX || isSubmittingScore
-  const connectButtonLabel = xHandle ? 'SUBMIT SCORE' : 'CONNECT X'
-  const connectButtonDetail = isConnectingX
-    ? 'X AUTH'
-    : isSubmittingScore
-      ? 'SYNCING SCORE'
-      : leaderboardStatus === 'submitted'
-        ? 'SCORE LINKED'
-        : xHandle
-          ? xHandle
-          : 'LEADERBOARD LINK'
+  const saveButtonDetail = isSubmittingScore
+    ? 'SYNCING SCORE'
+    : leaderboardStatus === 'submitted'
+      ? 'SCORE SAVED'
+      : 'LEADERBOARD LINK'
   const noticeText =
-    leaderboardNotice ??
-    (xHandle ? 'X CONNECTED. SCORE READY FOR THE LEADERBOARD.' : 'CONNECT X TO CLAIM THE SCORE.')
+    leaderboardNotice ?? 'SAVE YOUR FINAL SCORE TO THE LEADERBOARD. X HANDLE IS OPTIONAL.'
 
-  async function handleConnectXClick() {
-    await onConnectX()
-    setConnectNoticeId((current) => current + 1)
+  function handleOpenScoreModal() {
+    setNoticeId(0)
+    setIsScoreModalOpen(true)
+  }
+
+  async function handleSaveScoreClick() {
+    const saved = await onSaveScore(xHandleDraft)
+    if (!saved) {
+      setNoticeId((current) => current + 1)
+      return
+    }
+
+    setIsScoreModalOpen(false)
   }
 
   return (
@@ -124,12 +126,12 @@ export function RunEndScreen({
           <button
             type="button"
             className="intro-menu__item"
-            disabled={isConnectDisabled}
-            onClick={() => void handleConnectXClick()}
+            disabled={isSubmittingScore}
+            onClick={handleOpenScoreModal}
           >
-            <span className="run-end-screen__x-icon" aria-hidden="true" />
-            <span>{connectButtonLabel}</span>
-            <small>{connectButtonDetail}</small>
+            <Save size={20} strokeWidth={1.8} />
+            <span>SAVE SCORE</span>
+            <small>{saveButtonDetail}</small>
           </button>
 
           <button type="button" className="intro-menu__item" onClick={onMainMenu}>
@@ -140,9 +142,9 @@ export function RunEndScreen({
         </div>
 
         <AnimatePresence mode="wait">
-          {connectNoticeId > 0 ? (
+          {noticeId > 0 ? (
             <motion.div
-              key={connectNoticeId}
+              key={noticeId}
               className="run-end-screen__connect-notice"
               role="status"
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -156,6 +158,80 @@ export function RunEndScreen({
         </AnimatePresence>
       </motion.section>
 
+      <AnimatePresence>
+        {isScoreModalOpen ? (
+          <motion.div
+            className="run-end-screen__score-modal-backdrop"
+            role="presentation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !isSubmittingScore) {
+                setIsScoreModalOpen(false)
+              }
+            }}
+          >
+            <motion.section
+              className="run-end-screen__score-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="save-score-title"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <button
+                type="button"
+                className="run-end-screen__score-modal-close"
+                aria-label="Close save score"
+                disabled={isSubmittingScore}
+                onClick={() => setIsScoreModalOpen(false)}
+              >
+                <X size={22} strokeWidth={1.8} />
+              </button>
+
+              <div className="run-end-screen__score-modal-heading">
+                <Save size={20} strokeWidth={1.8} />
+                <span>LEADERBOARD SYNC</span>
+              </div>
+
+              <h2 id="save-score-title">SAVE SCORE</h2>
+              <p>ENTER YOUR X HANDLE IF YOU WANT IT SHOWN. LEAVE IT BLANK TO SAVE WITH WALLET ONLY.</p>
+
+              <label className="run-end-screen__score-input">
+                <span>X HANDLE OPTIONAL</span>
+                <div>
+                  <AtSign size={18} strokeWidth={1.8} />
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder="handle"
+                    value={xHandleDraft}
+                    disabled={isSubmittingScore}
+                    onChange={(event) => setXHandleDraft(event.target.value)}
+                  />
+                </div>
+              </label>
+
+              <button
+                type="button"
+                className="intro-menu__item intro-menu__item--primary run-end-screen__score-submit"
+                disabled={isSubmittingScore}
+                onClick={() => void handleSaveScoreClick()}
+              >
+                <Save size={18} strokeWidth={1.8} />
+                <span>{isSubmittingScore ? 'SAVING SCORE' : 'CONTINUE'}</span>
+                <small>{xHandleDraft.trim() ? 'WITH X HANDLE' : 'WALLET ONLY'}</small>
+              </button>
+            </motion.section>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </main>
   )
 }
